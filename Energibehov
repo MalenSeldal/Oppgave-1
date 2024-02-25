@@ -1,0 +1,364 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+# Importering av utetemperatur
+
+def f_lufttemperatur_import_Tu(filnavn):
+    data    = pd.read_csv(filnavn, delimiter=";", decimal=',', header=0)
+    tvec    = pd.to_datetime(data.iloc[0:8760,0], format='mixed').to_numpy()    # [dato]
+    Tuvec = data.iloc[0:8760,1].to_numpy()                    # [C]
+    return tvec, Tuvec
+
+def f_sol_import_I(filnavn):
+    data    = pd.read_csv(filnavn, delimiter=";", decimal=',', header=0)
+    tvec    = pd.to_datetime(data.iloc[0:8760,0], format='mixed').to_numpy()    # [dato]
+    Ivec = data.iloc[0:8760,1].to_numpy()                    # [C]
+    return tvec, Ivec
+
+
+
+"Data for beregningen"
+# Dimensjoner rom
+R1_L  = 9;          # Lengde, rom 1 (m)
+R1_B  = 5.4;        # Bredde, rom 1 (m)
+R2_L  = 6;          # Lengde, rom 2 (m)
+R2_B  = 4.2;        # Bredde, rom 2 (m)
+R3_L  = 3;          # Lengde, rom 3 (m)
+R3_B  = 4.2;        # Bredde, rom 3 (m)
+RH    = 3;          # Etasjehøyde (m)
+
+#Dimensjoner på¸rer og vinduer
+dor_B       = 1;          # Bredde, innerdører/ytterdør (m)
+dor_H       = 2;          # Høyde, innerdører/ytterdør (m)
+vindu_B     = 0.15;       # Bredde, vindu (m)
+vindu_H     = 0.25;       # Høyde, vindu (m)
+
+# Dimensjoner veggkonstruksjonen
+x_gips          = 0.0125;                   # Tykkelse, gipsplate (m)
+x_stn           = 0.148;                    # Tykkelse, stendere (m)
+x_ull           = 0.148;                    # Tykkelse, mineralull (m)
+x_teglstein     = 0.1;                      # Tykkelse, teglstein (m)
+x_cc            = 0.6;                      # Senteravstand, stendere (m)
+x_B_stn         = 0.036;                    # Bredde, stendere (m)
+x_B_ull         = x_cc - x_B_stn;           # Bredde, isolasjon (m)
+
+# Parametre for varmeegenskaper
+R_i             = 0.13;                     # Overgangsresistans, innervegg (m2*K/W)
+R_u             = 0.04;                     # Overgangsresistans, yttervegg (m2*K/W)
+R_tak           = 2;                        # Varmeresistans, loft og tak (m2*K/W)
+R_gulv          = 3;                        # Varmeresistans, gulv mot utsiden (m2*K/W)
+k_gips          = 0.2;                      # Varmekonduktivitet, gipsplate (W/m/K)
+k_stn           = 0.120;                    # Varmekonduktivitet, stendere (W/m/K)
+k_ull           = 0.034;                    # Varmekonduktivitet, mineralull (W/m/K)
+k_teglstein 	= 0.8;                      # Varmekonduktivitet, teglstein (W/m/K)
+U_kjolevegg     = 0.15;                     # U-verdi, kjøleromsvegg (W/m2/K)
+U_kjoledor      = 0.3;                      # U-verdi, kjøleromsdør (W/m2/K)
+U_utedor        = 0.2;                      # U-verdi, utedør (W/m2/K)
+U_innervegg     = 1;                        # U-verdi, innervegg (W/m2/K)
+U_vindu         = 0.8;                      # U-verdi, vinduer (W/m2/K)
+
+# Parametre for luft
+T_o              = 20;            # Temperatur, oppholdsrom (C)
+T_k              = 4;             # Temperatur, kjølerom (C)
+luft_rho         = 1.24;          # Tetthet, luft (kg/m3)
+luft_c           = 1;             # Varmekapasitet, luft (kJ/kg/K)
+
+# Sjekk at lastet ned data sbruker koma  
+
+# Parametre for ventilasjon og infiltrasjon
+S1_infiltrasjon =   0.4;                      # Luftskifte, infiltrasjon sone 1 (1/h)
+S2_infiltrasjon =   0.2;                      # Luftskifte, infiltrasjon sone 2 (1/h)
+S1_ventilasjon  =   0.6;                      # Luftskifte, ventilasjon sone 1 (1/h)
+S2_ventilasjon  =   0;                        # Luftskifte, ventilasjon sone 2 (1/h)
+eta_vv          =   0.8;                      # Virkningsgrad, varmeveksler   
+
+# Parametre for teknologi for oppvarming og nedkøling
+eta_el          = 1;     # Virkningsgrad, direkte elektrisk oppvarming
+COP_hp          = 4;     # COP-faktor varmepumpe hele året
+COP_kj          = 3;     # COP-faktor kjølemaskin hele året
+
+# BEREGNE AREAL vinduer
+vindu_Arute     = vindu_B*vindu_H;
+vindu_Arute4    = 4*vindu_Arute;
+vindu_Arute8    = 8*vindu_Arute;
+S1_A_vindu       = 5*vindu_Arute8 + 2*vindu_Arute4;
+S2_A_vindu       = 2*vindu_Arute8 + 0*vindu_Arute4;
+
+# BEREGNE AREAL dører
+dor_A         = dor_H*dor_B;
+S1_A_dor      = 1*dor_A;
+S2_A_dor      = 0*dor_A; # hvorfor 0????
+S1_S2_A_dor   = 1*dor_A;
+
+# BEREGNE AREAL veggflater inkludert dører/vinduer
+S1_A_yttervegg = (R1_B + R1_L + R1_B + R2_B + R2_L)*RH;
+S2_A_yttervegg = (R3_B + R3_L)*RH;
+S1_S2_A_vegg   = (R3_B + R3_L)*RH;
+
+# Grensesjikt mellom temperatursoner ekskludert dÃ¸rer/vinduer
+S1_Atot_yttervegg  = S1_A_yttervegg - S1_A_vindu - S1_A_dor;
+S2_Atot_yttervegg  = S2_A_yttervegg - S2_A_vindu - S2_A_dor;
+S1_S2_Atot_vegg	   = S1_S2_A_vegg - S1_S2_A_dor;
+
+# Gulvareal og takareal
+S1_A_gulv       = R1_B*R1_L + R2_B*R2_L;
+S2_A_gulv       = R3_B*R3_L;
+S1_A_tak        = S1_A_gulv;
+S2_A_tak        = S2_A_gulv;
+S1_A_Br         = S1_A_gulv; # Bruksareal
+S2_A_Br         = S2_A_gulv; # Bruksareal
+
+# Grensesjikt mellom temperatursoner inkludert dører/vinduer
+S1_Atot_ut      = S1_A_yttervegg + S1_A_tak + S1_A_gulv;
+S2_Atot_ut      = S2_A_yttervegg + S2_A_tak + S2_A_gulv;
+S1_S2_Atot_gs   = S1_S2_A_vegg;
+
+# Beregne volum
+S1_V            = S1_A_Br*RH;
+S2_V            = S2_A_Br*RH;
+
+
+
+" U-verdimetoden"
+
+# 1 Beregne U-verdi for isolasjonsseksjonen
+R_ull = R_i + x_ull/k_ull + x_gips/k_gips + x_teglstein/k_teglstein + R_u;
+U_ull = 1/R_ull;
+
+# 2 Beregne U-verdi for stenderseksjonen
+R_stn = R_i + x_stn/k_stn + x_gips/k_gips + x_teglstein/k_teglstein + R_u;
+U_stn = 1/R_stn;
+
+# 3 Beregne U-verdi for yttervegg i sone 1 og 2 uten vinduer/dører
+S1_n_ull        = (2*R1_B + R1_L + R2_B + R2_L)/x_cc;
+S1_n_stn        = S1_n_ull + 1;
+S1_Umet_U       = U_ull*(S1_n_ull*x_B_ull)/(S1_n_ull*x_B_ull + S1_n_stn*x_B_stn) + U_stn*(S1_n_stn*x_B_stn)/(S1_n_ull*x_B_ull + S1_n_stn*x_B_stn);
+                
+S2_n_ull        = (R3_B + R3_L)/x_cc;
+S2_n_stn        = S2_n_ull + 1; 
+S2_Umet_U	    = U_ull*(S2_n_ull*x_B_ull)/(S2_n_ull*x_B_ull + S2_n_stn*x_B_stn) + U_stn*(S2_n_stn*x_B_stn)/(S2_n_ull*x_B_ull + S2_n_stn*x_B_stn);
+
+
+
+
+" k-verdimetoden"
+
+# 1 Beregne legert k-verdi for det inhomogene sjiktet
+S1_kmet_kleg    =   k_ull*(S1_n_ull*x_B_ull)/(S1_n_ull*x_B_ull + S1_n_stn*x_B_stn) + k_stn*(S1_n_stn*x_B_stn)/(S1_n_ull*x_B_ull + S1_n_stn*x_B_stn);
+S2_kmet_kleg    =   k_ull*(S2_n_ull*x_B_ull)/(S2_n_ull*x_B_ull + S2_n_stn*x_B_stn) + k_stn*(S2_n_stn*x_B_stn)/(S2_n_ull*x_B_ull + S2_n_stn*x_B_stn);
+
+# 2. Beregne U-verdi for yttervegg i sone 1 og 2 uten vinduer/dører
+S1_kmet_R = R_i + x_gips/k_gips + x_ull/S1_kmet_kleg + x_teglstein/k_teglstein + R_u;
+S2_kmet_R = R_i + x_gips/k_gips + x_ull/S2_kmet_kleg + x_teglstein/k_teglstein + R_u;
+S1_kmet_U = 1/S1_kmet_R;
+S2_kmet_U = 1/S2_kmet_R;
+
+
+" Gjennomsnitt av U-verdimetode og K-verdimetode"
+S1_U_vegg    = np.mean([S1_kmet_U, S1_Umet_U]);     
+S2_U_vegg    = np.mean([S2_kmet_U, S2_Umet_U]);
+
+
+
+" Beregne U-verdi for hele veggflatene"
+S1_U_flate      =   (S1_U_vegg)*(S1_Atot_yttervegg)/(S1_A_yttervegg) + (U_vindu)*(S1_A_vindu)/(S1_A_yttervegg) + (U_utedor)*(S1_A_dor)/(S1_A_yttervegg);
+S2_U_flate      =   (S2_U_vegg)*(S2_Atot_yttervegg)/(S2_A_yttervegg) + (U_vindu)*(S2_A_vindu)/(S2_A_yttervegg) + (U_utedor)*(S2_A_dor)/(S2_A_yttervegg);
+S1_S2_U_flate   =   (U_kjolevegg)*(S1_S2_Atot_vegg)/(S1_S2_A_vegg) + (U_kjoledor)*(dor_A)/(S1_S2_A_vegg);
+
+
+" Beregne U-verdier for hele grensen mellom ulike soner:"
+U_gulv          = 1/R_gulv;
+U_tak           = 1/R_tak;
+ 
+S1_U_ut         = (S1_U_flate)*(S1_A_yttervegg)/(S1_Atot_ut) + (U_tak)*(S1_A_tak)/(S1_Atot_ut) + (U_gulv)*(S1_A_gulv)/(S1_Atot_ut);
+S2_U_ut         = (S2_U_flate)*(S2_A_yttervegg)/(S2_Atot_ut) + (U_tak)*(S2_A_tak)/(S2_Atot_ut) + (U_gulv)*(S2_A_gulv)/(S2_Atot_ut);
+S1_S2_U         = S1_S2_U_flate;
+
+"Termisk energibehov"
+# 1 Regn ut termisk energibehov for the forskjellige rommene
+tvec, Tuvec =f_lufttemperatur_import_Tu('BergenF.csv') # call data import
+# Generere matrix som i boka
+Uv = np.array([S1_U_ut, S2_U_ut, S1_S2_U]) # U-verdier
+Av = np.array([S1_Atot_ut, S2_Atot_ut, S1_S2_Atot_gs]) # Grenseareal
+dTv = np.column_stack([(T_o - Tuvec), (T_k - Tuvec), np.ones(len(Tuvec)) * (T_o - T_k)]) # Temperaturdifferanse
+dQv = Uv * Av * dTv # Konduksjon
+                                            
+# 2 Ventilasjon uten varmeveksler
+S1_dQventilasjon_uVV = (luft_rho) * (luft_c) * (S1_ventilasjon) * (S1_V) * dTv[:, 0] / 3600 * 1000
+S2_dQventilasjon_uVV = (luft_rho) * (luft_c) * (S2_ventilasjon) * (S2_V) * dTv[:, 1] / 3600 * 1000
+# 3 Ventilasjon med varmeveksler
+S1_dQventilasjon_VV	= S1_dQventilasjon_uVV*(1 - eta_vv);
+S2_dQventilasjon_VV = S2_dQventilasjon_uVV*(1 - eta_vv);
+
+# 4 Infiltrasjon
+S1_dQinfiltrasjon = (luft_rho) * (luft_c) * (S1_infiltrasjon) * (S1_V) * dTv[:, 0] / 3600 * 1000
+S2_dQinfiltrasjon = (luft_rho) * (luft_c) * (S2_infiltrasjon) * (S2_V) * dTv[:, 1] / 3600 * 1000
+# 5 Uten varmeveksler
+S1_dQopp_uVV = dQv[:, 0] + dQv[:, 2] + S1_dQventilasjon_uVV + S1_dQinfiltrasjon
+S2_dQopp_uVV = dQv[:, 1] - dQv[:, 2] + S2_dQventilasjon_uVV + S2_dQinfiltrasjon
+# 6 Med varmeveksler
+S1_dQopp_VV = dQv[:, 0] + dQv[:, 2] + S1_dQventilasjon_VV + S1_dQinfiltrasjon
+S2_dQopp_VV = dQv[:, 1] - dQv[:, 2] + S2_dQventilasjon_VV + S2_dQinfiltrasjon
+
+
+"Totalt oppvarmings- og kjølebehov beregnet som netto oppvarmingsbehov"
+# Regn ut netto totale oppvarmings- og kølebehov
+# 1 Uten varmeveksler
+dW_varme_uVV = np.maximum(S1_dQopp_uVV, 0) + np.maximum(S2_dQopp_uVV, 0)
+dW_kjole_uVV = np.minimum(S1_dQopp_uVV, 0) + np.minimum(S2_dQopp_uVV, 0)
+
+# 2 Med varmeveksler
+dW_varme_VV = np.maximum(S1_dQopp_VV, 0) + np.maximum(S2_dQopp_VV, 0)
+dW_kjole_VV = np.minimum(S1_dQopp_VV, 0) + np.minimum(S2_dQopp_VV, 0)
+
+"Elektrisk energibehov"
+# Regn ut det elektriske energibehovet
+# 1 Kølebehov
+dW_kjole_el = dW_kjole_uVV / COP_kj
+# 3. UTEN VARMEVEKSLER (CASE 1 & 2)
+# 3.1 El.forbruk for oppvarmings/kjølebehov: el i S1, HP i S2
+Wvarme_C1 = (np.maximum(S1_dQopp_uVV, 0) / eta_el) + (np.maximum(S2_dQopp_uVV, 0) / COP_hp)
+# 3.2 El.forbruk for oppvarmings/kjølebehov: HP i S1, HP i S2
+Wvarme_C2 = (np.maximum(S1_dQopp_uVV, 0) / COP_hp) + (np.maximum(S2_dQopp_uVV, 0) / COP_hp)
+
+# 4. MED VARMEVEKSLER (CASE 3)
+# 4.1 El.forbruk for oppvarmings/kjølebehov: HP i S1, HP i S2
+Wvarme_C3 = (np.maximum(S1_dQopp_VV, 0) / COP_hp) + (np.maximum(S2_dQopp_VV, 0) / COP_hp)
+
+print((np.sum(Wvarme_C1))/1000)
+print((np.sum(Wvarme_C2))/1000)
+print ((np.sum(Wvarme_C3))/1000)
+
+
+"Besparelse "
+# Regn ut energibesparelser
+Wbesp12 = (Wvarme_C1 - Wvarme_C2) / 1000
+Wbesp13 = (Wvarme_C1 - Wvarme_C3) / 1000
+
+Wbesp12aar = np.sum(Wbesp12)
+Wbesp13aar = np.sum(Wbesp13)
+
+print('\n \n')
+print('Besparelse strømbehov:')
+print(f'   Ved installering av HP (Case 1 til 2):          {round(Wbesp12aar)} kWh/år')
+print(f'   Ved installering av HP & VV (Case 1 til 3):     {round(Wbesp13aar)} kWh/år')
+
+
+#Veddlegg
+
+
+
+"Måndesgjennomsnitt"
+Tuvec_reshaped = Tuvec.reshape((365, 24))
+Wvarme_C1_reshaped = Wvarme_C1.reshape((365, 24))
+Wvarme_C2_reshaped = Wvarme_C2.reshape((365, 24))
+Wvarme_C3_reshaped = Wvarme_C3.reshape((365, 24))
+
+# Calculate daily averages
+# Reshape the arrays to have a shape of (365, 24) for Tu and (365, 24) for Wvarme_C1, Wvarme_C2, Wvarme_C3
+Tuvec_reshaped = Tuvec.reshape((365, 24))
+Wvarme_C1_reshaped = Wvarme_C1.reshape((365, 24))
+Wvarme_C2_reshaped = Wvarme_C2.reshape((365, 24))
+Wvarme_C3_reshaped = Wvarme_C3.reshape((365, 24))
+
+# Calculate daily averages
+Tuvec_daily_avg = np.mean(Tuvec_reshaped, axis=1)
+Wvarme_C1_daily_avg = np.mean(Wvarme_C1_reshaped, axis=1)
+Wvarme_C2_daily_avg = np.mean(Wvarme_C2_reshaped, axis=1)
+Wvarme_C3_daily_avg = np.mean(Wvarme_C3_reshaped, axis=1)
+
+# Create a DataFrame for daily averages
+df_daily_avg = pd.DataFrame({
+    'Tuvec_daily_avg': Tuvec_daily_avg,
+    'Wvarme_C1_daily_avg': Wvarme_C1_daily_avg,
+    'Wvarme_C2_daily_avg': Wvarme_C2_daily_avg,
+    'Wvarme_C3_daily_avg': Wvarme_C3_daily_avg
+}, index=pd.date_range(start='2023-01-01', end='2023-12-31', freq='D'))
+
+# Calculate monthly averages
+df_monthly_avg = df_daily_avg.resample('M').mean()
+
+# Clear variables (optional in Python, as memory management is handled by Python's garbage collector)
+del Tuvec_reshaped, Wvarme_C1_reshaped, Wvarme_C2_reshaped, Wvarme_C3_reshaped, Tuvec_daily_avg, Wvarme_C1_daily_avg, Wvarme_C2_daily_avg, Wvarme_C3_daily_avg
+
+# Display the monthly averages DataFrame
+print(df_monthly_avg)
+
+
+"Plotting"
+# Lag grafer for å visualisere resultater
+
+t = np.arange(0, 8760)
+#M = np.arange(0, 11)
+
+# For heating power plot
+plt.plot(t, Wvarme_C1, label='Case 1')
+plt.plot(t, Wvarme_C2, label='Case 2')
+plt.plot(t, Wvarme_C3, label='Case 3')
+
+# For additional plots, uncomment and adjust as needed
+# plt.plot(m, dW.M1, label='M1')
+# plt.plot(m, dW.M2, label='M2')
+# plt.plot(m, dW.M3, label='M3')
+
+plt.legend()
+plt.xlabel('Tid, timer')
+plt.ylabel('Energi, W')  # Adjust the ylabel based on your data
+plt.title('Case 1-3 energibehov')
+plt.show()
+
+# Plotting daily averages
+plt.figure(figsize=(10, 6))
+#plt.plot(df_daily_avg.index, df_daily_avg['Tuvec_daily_avg'], label='Tuvec_daily_avg')
+plt.plot(df_daily_avg.index, df_daily_avg['Wvarme_C1_daily_avg'], label='Wvarme_C1_daily_avg')
+plt.plot(df_daily_avg.index, df_daily_avg['Wvarme_C2_daily_avg'], label='Wvarme_C2_daily_avg')
+plt.plot(df_daily_avg.index, df_daily_avg['Wvarme_C3_daily_avg'], label='Wvarme_C3_daily_avg')
+plt.title('Daily Averages')
+plt.xlabel('Date')
+plt.ylabel('Energi, [KWh]')
+plt.legend()
+plt.show()
+
+# Angi størrelsen på figuren
+plt.figure(figsize=(10, 6))
+
+# Plotting monthly averages as bar chart
+bar_width = 0.2  # juster bredden etter behov
+
+bar_positions_C1 = np.arange(len(df_monthly_avg))
+bar_positions_C2 = bar_positions_C1 + bar_width
+bar_positions_C3 = bar_positions_C2 + bar_width
+
+plt.bar(bar_positions_C1, df_monthly_avg['Wvarme_C1_daily_avg'], width=bar_width, label='C1', alpha=0.7, color='hotpink')
+plt.bar(bar_positions_C2, df_monthly_avg['Wvarme_C2_daily_avg'], width=bar_width, label='C2', alpha=0.7, color='deepskyblue')
+plt.bar(bar_positions_C3, df_monthly_avg['Wvarme_C3_daily_avg'], width=bar_width, label='C3', alpha=0.7, color='plum')
+
+plt.title('Månedlig energibehov i Bergen')
+plt.xlabel('Måned')
+plt.ylabel('Energi, [KWh]')
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.legend()
+
+# Sett månedsnavnene på x-aksen
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+plt.xticks(bar_positions_C1 + bar_width / 2, months)
+
+plt.show()
+
+
+plt.figure(figsize=(8, 5))
+
+
+
+
+
+
+# Lagre data i .npy file
+np.save('Sted1_T.npy', Tuvec)
+np.save('Sted1_Besparelse12.npy', Wbesp12)
+np.save('Sted1_Besparelse13.npy', Wbesp13)
+np.save('Sted1_ForbrukC1.npy', Wvarme_C1)
+np.save('Sted1_ForbrukC2.npy', Wvarme_C2)
+np.save('Sted1_ForbrukC3.npy', Wvarme_C3)
