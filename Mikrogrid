@@ -1,0 +1,138 @@
+import numpy as np 
+import pandas as pd 
+import matplotlib.pyplot as plt
+
+def f_sol_bergen(filnavn):
+    data = pd.read_csv(filnavn, delimiter=",",decimal=".", header = 6)
+    tvec = pd.to_datetime(data.iloc[0:8760,0], format = '%Y%m%d:%H%M',dayfirst=True).to_numpy()
+    Tuvec = data.iloc[0:8760,3].to_numpy()
+    Tuvec = np.asarray(Tuvec,dtype = float)
+    g_i_b = data.iloc[0:8760,1].to_numpy()
+    g_i_b = np.asarray(g_i_b,dtype = float)
+    return tvec, Tuvec, g_i_b
+
+tvec, Tuvec, g_i_b = f_sol_bergen('Sol_Bergen.csv')
+#print(Tuvec)
+
+
+def f_sol_kirkenes(filnavn):
+    data_2 = pd.read_csv(filnavn, delimiter=",",decimal=".", header = 6)
+    tvec_2 = pd.to_datetime(data_2.iloc[0:8760,0], format = '%Y%m%d:%H%M',dayfirst=True).to_numpy()
+    Tuvec_2 = data_2.iloc[0:8760,3].to_numpy()
+    Tuvec_2 = np.asarray(Tuvec_2,dtype = float)
+    g_i_k = data_2.iloc[0:8760,1].to_numpy()
+    g_i_k = np.asarray(g_i_k,dtype = float)
+    return tvec_2, Tuvec_2, g_i_k
+
+tvec_2, Tuvec_2, g_i_k = f_sol_kirkenes('Sol_Kirkenes.csv')
+#print(Tuvec_2)
+
+#Virkningsgrad 2
+eta_s = 0.2+0.3/100 * (25 - (Tuvec + 20))
+eta_k = 0.2+0.3/100 * (25 - (Tuvec_2 + 20))
+
+#Strømproduksjon 3)
+produksjon_s = (eta_s*g_i_b*10)
+produksjon_k = (eta_k*g_i_k*10)
+
+#print(sum(produksjon_s)/1000)
+#print(sum(produksjon_k)/1000)
+
+#Månedlig gjennomsnitt 4) 
+Innstraling_array_s = np.array(g_i_b)
+Innstraling_array_k = np.array(g_i_k)
+virkningsgrad_s_array = np.array(eta_s)
+virkningsgrad_k_array = np.array(eta_k)
+sol_energi_s_array = np.array(produksjon_s)
+sol_energi_k_array = np.array(produksjon_k)
+
+
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+# Eksempeldata for innstråling, virkningsgrad og strømproduksjon for to plasseringer
+monthly_inn_s = np.array(g_i_b).reshape(12, 730).sum(axis=1)
+monthly_virkning_s = np.array(eta_s).reshape(12, 730).mean(axis=1)
+monthly_sol_s = np.array(produksjon_s).reshape(12, 730).sum(axis=1)
+
+monthly_inn_k = np.array(g_i_k).reshape(12, 730).sum(axis=1)
+monthly_virkning_k = np.array(eta_k).reshape(12, 730).mean(axis=1)
+monthly_sol_k = np.array(produksjon_k).reshape(12, 730).sum(axis=1)
+
+bar_width = 0.35  # Bredden på stolpene
+
+# Plasseringen av den andre stolpen
+bar_positions_s = np.arange(len(months))
+bar_positions_k = bar_positions_s + bar_width
+
+# Plot innstråling
+plt.figure()
+plt.bar(bar_positions_s, monthly_inn_s/1000, width=bar_width, color='lightblue', label='Bergen')
+plt.bar(bar_positions_k, monthly_inn_k/1000, width=bar_width, color='plum', label='Kirkenes')
+plt.title('Innstråling som funksjon av månedene, år 2020')
+plt.xlabel('Måned')
+plt.ylabel('Innstråling [kWh/m^2]')
+plt.xticks(bar_positions_s + bar_width / 2, months)
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.ylim(0, 200)
+plt.show()
+
+
+# Plot for virkningsgrad
+fig, ax1 = plt.subplots(figsize=(10, 6))
+
+
+ax1.set_xlabel('Måned')
+ax1.set_ylabel('Virkningsgrad')
+ax1.plot(months, monthly_virkning_s, color='lightblue', marker='o', label='Bergen')
+ax1.plot(months, monthly_virkning_k, color='plum', marker='s', label='Kirkenes')
+ax1.tick_params(axis='y')
+
+ax1.legend()
+plt.title('Virkningsgrad per Måned, år 2020')
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.show()
+
+# Plot for strømproduksjon
+fig, ax2 = plt.subplots(figsize=(10, 6))
+
+ax2.set_xlabel('Måned')
+ax2.set_ylabel('Strømproduksjon [kWh]')
+ax2.bar(bar_positions_s, monthly_sol_s/1000, color='lightblue', alpha=0.7, width=bar_width, label='Bergen')
+ax2.bar(bar_positions_k, monthly_sol_k/1000, color='plum', alpha=0.7, width=bar_width, label='Kirkenes')
+ax2.tick_params(axis='y')
+
+ax2.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.title('Strømproduksjon per Måned, år 2020')
+plt.show()
+
+
+# Plot for virkningsgrad og strømproduksjon i samme graf
+fig, ax1 = plt.subplots(figsize=(12, 6))
+
+# Plot for virkningsgrad på venstre akse
+ax1.set_xlabel('Måned')
+ax1.set_ylabel('Virkningsgrad', color='black')
+ax1.plot(months, monthly_virkning_s, color='red', marker='o', label='Bergen - Virkningsgrad')
+ax1.plot(months, monthly_virkning_k, color='green', marker='s', label='Kirkenes - Virkningsgrad')
+ax1.tick_params(axis='y', labelcolor='black')
+ax1.legend(loc='upper left')
+
+# Opprett en ny akse på høyre side for strømproduksjon
+ax2 = ax1.twinx()
+ax2.set_ylabel('Strømproduksjon [kWh]', color='black')
+ax2.bar(bar_positions_s, monthly_sol_s / 1000, color='pink', alpha=0.7, width=bar_width, label='Bergen - Strømproduksjon')
+ax2.bar(bar_positions_k, monthly_sol_k / 1000, color='limegreen', alpha=0.7, width=bar_width, label='Kirkenes - Strømproduksjon')
+ax2.tick_params(axis='y', labelcolor='black')
+ax2.legend(loc='upper right')
+
+plt.title('Virkningsgrad og Strømproduksjon per Måned, år 2020')
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.show()
+
+
+
+#lagrer filer
+np.save('E_prod_sol_Bergen.npy', produksjon_s)
+np.save('E_prod_sol_Kirkenes.npy', produksjon_k)
