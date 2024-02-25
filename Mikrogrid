@@ -1,138 +1,538 @@
-import numpy as np 
-import pandas as pd 
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
-def f_sol_bergen(filnavn):
-    data = pd.read_csv(filnavn, delimiter=",",decimal=".", header = 6)
-    tvec = pd.to_datetime(data.iloc[0:8760,0], format = '%Y%m%d:%H%M',dayfirst=True).to_numpy()
-    Tuvec = data.iloc[0:8760,3].to_numpy()
-    Tuvec = np.asarray(Tuvec,dtype = float)
-    g_i_b = data.iloc[0:8760,1].to_numpy()
-    g_i_b = np.asarray(g_i_b,dtype = float)
-    return tvec, Tuvec, g_i_b
+"Load data"
+Esol_B = (np.load('E_prod_sol_Bergen.npy'))/(1000)
+Pvind_B = np.load('Bergen_EprodVind_new.npy')
+Wvarme_C1_B = (np.load('Sted1_ForbrukC1.npy'))/(1000)
+Wvarme_C2_B = (np.load('Sted1_ForbrukC2.npy'))/(1000)
+Wvarme_C3_B = (np.load('Sted1_ForbrukC3.npy'))/(1000)
+Wbesp12_B = np.load('Sted1_besparelse12.npy') #kWh
+Wbesp13_B = np.load('Sted1_Besparelse13.npy') #kWh
 
-tvec, Tuvec, g_i_b = f_sol_bergen('Sol_Bergen.csv')
-#print(Tuvec)
-
-
-def f_sol_kirkenes(filnavn):
-    data_2 = pd.read_csv(filnavn, delimiter=",",decimal=".", header = 6)
-    tvec_2 = pd.to_datetime(data_2.iloc[0:8760,0], format = '%Y%m%d:%H%M',dayfirst=True).to_numpy()
-    Tuvec_2 = data_2.iloc[0:8760,3].to_numpy()
-    Tuvec_2 = np.asarray(Tuvec_2,dtype = float)
-    g_i_k = data_2.iloc[0:8760,1].to_numpy()
-    g_i_k = np.asarray(g_i_k,dtype = float)
-    return tvec_2, Tuvec_2, g_i_k
-
-tvec_2, Tuvec_2, g_i_k = f_sol_kirkenes('Sol_Kirkenes.csv')
-#print(Tuvec_2)
-
-#Virkningsgrad 2
-eta_s = 0.2+0.3/100 * (25 - (Tuvec + 20))
-eta_k = 0.2+0.3/100 * (25 - (Tuvec_2 + 20))
-
-#Strømproduksjon 3)
-produksjon_s = (eta_s*g_i_b*10)
-produksjon_k = (eta_k*g_i_k*10)
-
-#print(sum(produksjon_s)/1000)
-#print(sum(produksjon_k)/1000)
-
-#Månedlig gjennomsnitt 4) 
-Innstraling_array_s = np.array(g_i_b)
-Innstraling_array_k = np.array(g_i_k)
-virkningsgrad_s_array = np.array(eta_s)
-virkningsgrad_k_array = np.array(eta_k)
-sol_energi_s_array = np.array(produksjon_s)
-sol_energi_k_array = np.array(produksjon_k)
+Esol_K = (np.load('E_prod_sol_Bergen.npy'))/(1000)
+Pvind_K = np.load('Kirkenes_EprodVind_new.npy')
+Wvarme_C1_K = (np.load('Sted2_ForbrukC1.npy'))/(1000)
+Wvarme_C2_K = (np.load('Sted2_ForbrukC2.npy'))/(1000)
+Wvarme_C3_K = (np.load('Sted2_ForbrukC3.npy'))/(1000)
+Wbesp12_K = np.load('Sted2_besparelse12.npy') #kWh
+Wbesp13_K = np.load('Sted2_Besparelse13.npy') #kWh
 
 
-months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-# Eksempeldata for innstråling, virkningsgrad og strømproduksjon for to plasseringer
-monthly_inn_s = np.array(g_i_b).reshape(12, 730).sum(axis=1)
-monthly_virkning_s = np.array(eta_s).reshape(12, 730).mean(axis=1)
-monthly_sol_s = np.array(produksjon_s).reshape(12, 730).sum(axis=1)
+"Energiberegninger"
+#2energibesparelse ved innstallering av varmepumpe
 
-monthly_inn_k = np.array(g_i_k).reshape(12, 730).sum(axis=1)
-monthly_virkning_k = np.array(eta_k).reshape(12, 730).mean(axis=1)
-monthly_sol_k = np.array(produksjon_k).reshape(12, 730).sum(axis=1)
+#Bergen energibesparelse
+energi_besparelse_13_B = (Wvarme_C1_B - Wvarme_C2_B) #kWh
+print(f'Energibesparelse ved å innstallere varmepumpe: {energi_besparelse_13_B}')
 
-bar_width = 0.35  # Bredden på stolpene
 
-# Plasseringen av den andre stolpen
-bar_positions_s = np.arange(len(months))
-bar_positions_k = bar_positions_s + bar_width
+#Kirkenes energibesparelse
+energi_besparelse_13_K = (Wvarme_C1_K - Wvarme_C2_K) #kWh
+print(f'Energibesparelse ved å innstallere varmepumpe: {energi_besparelse_13_B}')
 
-# Plot innstråling
-plt.figure()
-plt.bar(bar_positions_s, monthly_inn_s/1000, width=bar_width, color='lightblue', label='Bergen')
-plt.bar(bar_positions_k, monthly_inn_k/1000, width=bar_width, color='plum', label='Kirkenes')
-plt.title('Innstråling som funksjon av månedene, år 2020')
-plt.xlabel('Måned')
-plt.ylabel('Innstråling [kWh/m^2]')
-plt.xticks(bar_positions_s + bar_width / 2, months)
+print('\n')
+
+
+
+#3 netto strømproduksjon
+netto_strømproduksjon_B = Esol_B + Pvind_B #kWh
+print(f'Netto strømproduksjon: {netto_strømproduksjon_B}')
+
+netto_strømproduksjon_K = Esol_K + Pvind_K #kWh
+print(f'Netto strømproduksjon: {netto_strømproduksjon_K}')
+
+
+
+print('\n')
+
+#4 netto energiforbruk alle scenarier
+E_minus_C1_B = (Wvarme_C1_B) - netto_strømproduksjon_B
+E_minus_C2_B = (Wvarme_C2_B) - netto_strømproduksjon_B
+E_minus_C3_B = (Wvarme_C3_B) - netto_strømproduksjon_B
+
+print('Bergen:')
+print(f'Netto energiforbruk scenario 1: {E_minus_C1_B}')
+print(f'Netto energiforbruk scenario 2: {E_minus_C2_B}')
+print(f'Netto energiforbruk scenario 3: {E_minus_C3_B}')
+
+print('\n')
+
+
+#4 netto energiforbruk alle scenarier
+E_minus_C1_K = (Wvarme_C1_K) - netto_strømproduksjon_K
+E_minus_C2_K = (Wvarme_C2_K) - netto_strømproduksjon_K
+E_minus_C3_K = (Wvarme_C3_K) - netto_strømproduksjon_K
+
+print('Kirkenes:')
+print(f'Netto energiforbruk scenario 1: {E_minus_C1_K}')
+print(f'Netto energiforbruk scenario 2: {E_minus_C2_K}')
+print(f'Netto energiforbruk scenario 3: {E_minus_C3_K}')
+
+print('\n')
+
+
+
+#5 Hvor mye energi må kjøpes totalt iløpet av et år (positiv netto energi-forbruk)?
+
+E_kjøp_C1_B = abs(sum(np.maximum(E_minus_C1_B, 0)))
+E_kjøp_C2_B = abs(sum(np.maximum(E_minus_C2_B, 0)))
+E_kjøp_C3_B = abs(sum(np.maximum(E_minus_C3_B, 0)))
+
+print('Bergen:')
+print(f'Energi som må kjøpes iløpet av et år ved C1: {E_kjøp_C1_B} kWh')
+print(f'Energi som må kjøpes iløpet av et år ved C2: {E_kjøp_C2_B} kWh')
+print(f'Energi som må kjøpes iløpet av et år ved C3: {E_kjøp_C3_B} kWh')
+
+print('\n')
+
+
+E_kjøp_C1_K = abs(sum(np.maximum(E_minus_C1_K, 0)))
+E_kjøp_C2_K = abs(sum(np.maximum(E_minus_C2_K, 0)))
+E_kjøp_C3_K = abs(sum(np.maximum(E_minus_C3_K, 0)))
+
+print('Kirkenes:')
+print(f'Energi som må kjøpes iløpet av et år ved C1: {E_kjøp_C1_K} kWh')
+print(f'Energi som må kjøpes iløpet av et år ved C2: {E_kjøp_C2_K} kWh')
+print(f'Energi som må kjøpes iløpet av et år ved C3: {E_kjøp_C3_K} kWh')
+
+print('\n')
+
+
+
+#6 hvor mye energi som kan selges totalt over et år
+
+#Salg Bergen
+E_selg_C1_B = abs(sum(np.minimum(E_minus_C1_B, 0)))
+E_selg_C2_B = abs(sum(np.minimum(E_minus_C2_B, 0)))
+E_selg_C3_B= abs(sum(np.minimum(E_minus_C3_B, 0)))
+
+
+print('Bergen:')
+print(f'Energi som kan selges iløpet av et år ved C1: {E_selg_C1_B} kWh')
+print(f'Energi som kan selges iløpet av et år ved C2: {E_selg_C2_B} kWh')
+print(f'Energi som kan selges iløpet av et år ved C3: {E_selg_C3_B} kWh')
+
+print('\n')
+
+
+#Salg Kirkenes
+E_selg_C1_K = abs(sum(np.minimum(E_minus_C1_K, 0)))
+E_selg_C2_K = abs(sum(np.minimum(E_minus_C2_K, 0)))
+E_selg_C3_K = abs(sum(np.minimum(E_minus_C3_K, 0)))
+
+
+print('Kirkenes:')
+print(f'Energi som kan selges iløpet av et år ved C1: {E_selg_C1_K} kWh')
+print(f'Energi som kan selges iløpet av et år ved C2: {E_selg_C2_K} kWh')
+print(f'Energi som kan selges iløpet av et år ved C3: {E_selg_C3_K} kWh')
+
+print('\n')
+
+
+#Gitt at 10 m2 solceller og 1 vindturbin hver produserer de mengdene strøm som ble beregnet i Oppgave 2 og 3."
+
+" Variabelt antall solceller"
+
+#Bergen
+E_s_B = (np.sum(Esol_B))
+W_C1_B = np.sum(Wvarme_C1_B)
+W_C2_B = np.sum(Wvarme_C2_B)
+W_C3_B = np.sum(Wvarme_C3_B)
+
+n_s = np.arange(1, 10, 1) #solpaneller
+
+E_s_prod_C1_B = ((E_s_B*n_s)-(W_C1_B))#kWh  
+E_s_prod_C2_B = ((E_s_B*n_s)-(W_C2_B))#kWh
+E_s_prod_C3_B = ((E_s_B*n_s)-(W_C3_B))#kWh
+
+
+plt.plot(n_s, E_s_prod_C1_B, label='Scenario C1')
+plt.plot(n_s, E_s_prod_C2_B, label='Scenario C2')
+plt.plot(n_s, E_s_prod_C3_B, label='Scenario C3') #Skal bare ha denne
+
+plt.title('Årlig Netto Strømproduksjon fra Solcellepaneler i Bergen')
+plt.xlabel('Antall solcellepaneler')
+plt.ylabel('Netto Strømproduksjon (kWh)')
 plt.legend()
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.ylim(0, 200)
+plt.grid(True)
 plt.show()
 
 
-# Plot for virkningsgrad
-fig, ax1 = plt.subplots(figsize=(10, 6))
+#Kirkenes
+E_s_K = (np.sum(Esol_K))
+W_C1_K = np.sum(Wvarme_C1_K)
+W_C2_K = np.sum(Wvarme_C2_K)
+W_C3_K = np.sum(Wvarme_C3_K)
+
+n_s = np.arange(1, 10, 1) #solpaneller
+
+E_s_prod_C1_K = ((E_s_K*n_s)-(W_C1_K))#kWh  
+E_s_prod_C2_K = ((E_s_K*n_s)-(W_C2_K))#kWh
+E_s_prod_C3_K = ((E_s_K*n_s)-(W_C3_K))#kWh
 
 
-ax1.set_xlabel('Måned')
-ax1.set_ylabel('Virkningsgrad')
-ax1.plot(months, monthly_virkning_s, color='lightblue', marker='o', label='Bergen')
-ax1.plot(months, monthly_virkning_k, color='plum', marker='s', label='Kirkenes')
-ax1.tick_params(axis='y')
+plt.plot(n_s, E_s_prod_C1_K, label='Scenario C1')
+plt.plot(n_s, E_s_prod_C2_K, label='Scenario C2')
+plt.plot(n_s, E_s_prod_C3_K, label='Scenario C3')
 
-ax1.legend()
-plt.title('Virkningsgrad per Måned, år 2020')
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.show()
-
-# Plot for strømproduksjon
-fig, ax2 = plt.subplots(figsize=(10, 6))
-
-ax2.set_xlabel('Måned')
-ax2.set_ylabel('Strømproduksjon [kWh]')
-ax2.bar(bar_positions_s, monthly_sol_s/1000, color='lightblue', alpha=0.7, width=bar_width, label='Bergen')
-ax2.bar(bar_positions_k, monthly_sol_k/1000, color='plum', alpha=0.7, width=bar_width, label='Kirkenes')
-ax2.tick_params(axis='y')
-
-ax2.legend()
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.title('Strømproduksjon per Måned, år 2020')
-plt.show()
-
-
-# Plot for virkningsgrad og strømproduksjon i samme graf
-fig, ax1 = plt.subplots(figsize=(12, 6))
-
-# Plot for virkningsgrad på venstre akse
-ax1.set_xlabel('Måned')
-ax1.set_ylabel('Virkningsgrad', color='black')
-ax1.plot(months, monthly_virkning_s, color='red', marker='o', label='Bergen - Virkningsgrad')
-ax1.plot(months, monthly_virkning_k, color='green', marker='s', label='Kirkenes - Virkningsgrad')
-ax1.tick_params(axis='y', labelcolor='black')
-ax1.legend(loc='upper left')
-
-# Opprett en ny akse på høyre side for strømproduksjon
-ax2 = ax1.twinx()
-ax2.set_ylabel('Strømproduksjon [kWh]', color='black')
-ax2.bar(bar_positions_s, monthly_sol_s / 1000, color='pink', alpha=0.7, width=bar_width, label='Bergen - Strømproduksjon')
-ax2.bar(bar_positions_k, monthly_sol_k / 1000, color='limegreen', alpha=0.7, width=bar_width, label='Kirkenes - Strømproduksjon')
-ax2.tick_params(axis='y', labelcolor='black')
-ax2.legend(loc='upper right')
-
-plt.title('Virkningsgrad og Strømproduksjon per Måned, år 2020')
-plt.grid(True, linestyle='--', alpha=0.7)
+plt.title('Årlig Netto Strømproduksjon fra Solcellepaneler i Kirkenes')
+plt.xlabel('Antall solcellepaneler')
+plt.ylabel('Netto Strømproduksjon (kWh)')
+plt.legend()
+plt.grid(True)
 plt.show()
 
 
 
-#lagrer filer
-np.save('E_prod_sol_Bergen.npy', produksjon_s)
-np.save('E_prod_sol_Kirkenes.npy', produksjon_k)
+
+
+"Variabelt antall vindturbiner"
+E_t_B = np.sum(Pvind_B)
+
+n_t = np.arange(1, 10, 1) #vindmøller
+E_t_prod_C1_B = ((E_t_B*n_t)-(W_C1_B)) #kWh
+E_t_prod_C2_B = ((E_t_B*n_t)-(W_C2_B)) #kWh
+E_t_prod_C3_B = ((E_t_B*n_t)-(W_C3_B)) #kWh
+
+
+# Plot resultatene
+plt.figure(figsize=(10, 6))
+
+plt.plot(n_t, E_t_prod_C1_B, label='Scenario C1')
+plt.plot(n_t, E_t_prod_C2_B, label='Scenario C2')
+plt.plot(n_t, E_t_prod_C3_B, label='Scenario C3')
+
+plt.title('Årlig Netto Strømproduksjon fra Vindturbiner i Bergen')
+plt.xlabel('Antall vindturbiner')
+plt.ylabel('Netto Strømproduksjon (kWh)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+E_t_K = np.sum(Pvind_K)
+
+n_t = np.arange(1, 10, 1) #vindmøller
+E_t_prod_C1_K = ((E_t_K*n_t)-(W_C1_K)) #kWh
+E_t_prod_C2_K = ((E_t_K*n_t)-(W_C2_K)) #kWh
+E_t_prod_C3_K = ((E_t_K*n_t)-(W_C3_K)) #kWh
+
+
+# Plot resultatene
+plt.figure(figsize=(10, 6))
+
+plt.plot(n_t, E_t_prod_C1_K, label='Scenario C1')
+plt.plot(n_t, E_t_prod_C2_K, label='Scenario C2')
+plt.plot(n_t, E_t_prod_C3_K, label='Scenario C3')
+
+plt.title('Årlig Netto Strømproduksjon fra Vindturbiner i Kirkenes')
+plt.xlabel('Antall vindturbiner')
+plt.ylabel('Netto Strømproduksjon (kWh)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+
+"Kostnader"
+
+t = np.arange(1, 8761)
+
+p_strøm = 0.68 + 0.15 * np.cos(((2 * np.pi * t) / 8760) - (np.pi) / 8)  # kr/kWh
+p_nett = 0.65 - 0.15 * np.cos((2 * np.pi * t) / 8760)  # kr/kWh
+p_salg = np.sqrt((p_strøm) / (np.sum(p_strøm) / 8760))  # kr/kWh
+
+p_salg = np.sqrt(np.sum(p_strøm) / 8760)  # kr/kWh
+
+#1 Netto strømpris
+netto_pris = np.mean(p_strøm + p_nett)
+
+#2 Beregn salgspris
+print(f'Salgspris er: {p_salg}')
+
+print('\n')
+
+#3 årlig kostnad for kjøp av strøm for alle scenarioene (netto strømforbruk) dvs strøm man må kjøpe når ikke sol eller vind holder?
+
+kostnad_C1_B = (E_kjøp_C1_B * (netto_pris))
+kostnad_C2_B = (E_kjøp_C2_B * (netto_pris))
+kostnad_C3_B = (E_kjøp_C3_B * (netto_pris))
+
+
+print('Bergen:')
+print(f'Årlig kostnad for kjøp av strøm (Scenario C1): {kostnad_C1_B} NOK')
+print(f'Årlig kostnad for kjøp av strøm (Scenario C2): {kostnad_C2_B} NOK')
+print(f'Årlig kostnad for kjøp av strøm (Scenario C3): {kostnad_C3_B} NOK')
+
+
+print('\n')
+
+
+kostnad_C1_K = (E_kjøp_C1_K * (netto_pris))
+kostnad_C2_K = (E_kjøp_C2_K * (netto_pris))
+kostnad_C3_K = (E_kjøp_C3_K * (netto_pris))
+
+
+print('Kirkenes')
+print(f'Årlig kostnad for kjøp av strøm (Scenario C1): {kostnad_C1_K} NOK')
+print(f'Årlig kostnad for kjøp av strøm (Scenario C2): {kostnad_C2_K} NOK')
+print(f'Årlig kostnad for kjøp av strøm (Scenario C3): {kostnad_C3_K} NOK')
+
+
+print('\n')
+
+
+
+
+#3 årlig salg av strøm for alle scenarioene (netto strømforbruk)
+
+salg_C1_B = (E_selg_C1_B * (p_salg)) #p_salg istedenfor
+salg_C2_B = (E_selg_C2_B * (p_salg))
+salg_C3_B = (E_selg_C3_B * (p_salg))
+
+print('Bergen:')
+print(f'Årlig salg for strøm (Scenario C1): {salg_C1_B} NOK')
+print(f'Årlig salg for strøm (Scenario C2): {salg_C2_B} NOK')
+print(f'Årlig salg for strøm (Scenario C3): {salg_C3_B} NOK')
+
+print('\n')
+
+salg_C1_K = (E_selg_C1_K * (p_salg))
+salg_C2_K = (E_selg_C2_K * (p_salg))
+salg_C3_K = (E_selg_C3_K * (p_salg))
+
+print('Kirkenes:')
+print(f'Årlig salg for strøm (Scenario C1): {salg_C1_K} NOK')
+print(f'Årlig salg for strøm (Scenario C2): {salg_C2_K} NOK')
+print(f'Årlig salg for strøm (Scenario C3): {salg_C3_K} NOK')
+
+
+print('\n')
+
+
+#5 Årlig kostnadsbesparelse ved å installere varmepumpe - Wbesp12=kWh
+
+
+E_besp_13_B = sum(energi_besparelse_13_B*(netto_pris))
+
+print(f'Årlig besparelse ved å instalere varmepumpe i Bergen: {E_besp_13_B} NOK')
+
+
+
+E_besp_13_K = sum(energi_besparelse_13_K*(netto_pris))
+
+print(f'Årlig besparelse ved å instalere varmepumpe i Kirkenes: {E_besp_13_K} NOK')
+
+
+print('\n')
+
+
+#Årlig besparelse ved installasjon av 1 vindturbin (anta ingen salg av strøm)??????
+
+E_besp_vind_B = sum((Pvind_B)*netto_pris)
+
+
+print('Bergen:')
+print(f'Årlig besparelse ved installasjon av 1 vindturbin C1: {E_besp_vind_B} NOK')
+
+
+
+print('\n')
+
+
+E_besp_vind_K = sum((Pvind_K)*netto_pris)
+
+
+print('Kirkenes:')
+print(f'Årlig besparelse ved installasjon av 1 vindturbin C1: {E_besp_vind_K} NOK')
+
+
+
+print('\n')
+
+
+#Årlig besparelse ved installasjon av 1 solcelle 10m^2, (anta ingen salg av strøm)??????
+
+
+
+E_besp_sol_B = sum((Esol_B)*netto_pris)
+
+
+print('Bergen:')
+print(f'Årlig besparelse ved installasjon av 10m^2 solceller C1: {E_besp_sol_B} NOK')
+
+
+
+print ('\n')
+
+E_besp_sol_K = sum((Esol_K)*netto_pris)
+
+
+print('Kirkenes:')
+print(f'Årlig besparelse ved installasjon av 10m^2 solceller C1: {E_besp_sol_K} NOK ')
+
+
+print('\n')
+
+"Nåverdi"
+
+#Gitt informasjon
+
+N_sol = 30           #Antall år solceller varer
+N_vind = 15          #Antall år vindturbun varer
+N_varmepumpe = 12    #Antall år varmepumpe varer
+I_sol = 2000         #investering kr/m^2
+I_vind = 50000       #investering kr/turbin
+I_pumpe = 9000       #ivenstering kr
+V_sol = 30           #Årlig vedlikeholdskostnad for solceller (kr/år/m^2)
+V_vind = 200         #Årlig vedlikeholdskostnad for vindturbin (kr/år/turbin)
+V_pumpe = 250        #årlig vedlikeholdskostnad for varmepumpe (kr/år)
+r = 0.07             #Renten (7%)
+
+
+
+#nåverdi solcellepanel
+
+NV_sol_C1_B = -I_sol - (V_sol*(1-(1+r)**(-N_sol))/r) + (E_besp_sol_B*((1-(1+r)**(-N_sol)))/r)
+
+
+print('Bergen:')
+print(f"Nåverdi for solceller scenario 1 : {NV_sol_C1_B} kr")
+
+
+print('\n')
+
+NV_sol_C1_K = -I_sol - (V_sol*(1-(1+r)**(-N_sol))/r) + (E_besp_sol_K*((1-(1+r)**(-N_sol)))/r)
+
+
+print('Kirkenes:')
+print(f"Nåverdi for solceller scenario 1 : {NV_sol_C1_K} kr")
+
+
+
+print('\n')
+
+#Nåverdi vindturbin
+
+NV_vind_C1_B = -I_vind - (V_vind*(1-(1+r)**(-N_vind))/r) + (E_besp_vind_B*((1-(1+r)**(-N_vind)))/r)
+
+
+print('Bergen')
+print(f"Nåverdi for vindturbin i scenario C1: {NV_vind_C1_B} kr")
+
+
+print ('\n')
+
+NV_vind_C1_K = -I_vind - (V_vind*(1-(1+r)**(-N_vind))/r) + (E_besp_vind_K*((1-(1+r)**(-N_vind)))/r)
+
+
+
+print('Kirkenes:')
+print(f"Nåverdi for vindturbin i scenario C1: {NV_vind_C1_K} kr")
+
+print ('\n')
+
+#Nåverdli varmepumpe
+
+NV_pumpe_B = -I_pumpe - (V_pumpe*(1-(1+r)**(-N_varmepumpe))/r) + (E_besp_13_B*((1-(1+r)**(-N_varmepumpe)))/r)
+
+
+print('Bergen')
+print(f"Nåverdi for varmepumpe: {NV_pumpe_B} kr")
+
+
+print ('\n')
+
+
+NV_pumpe_K = -I_pumpe - (V_pumpe*(1-(1+r)**(-N_varmepumpe))/r) + (E_besp_13_K*((1-(1+r)**(-N_varmepumpe)))/r)
+
+
+
+print('Kirkenes')
+print(f"Nåverdi for varmepumpe: {NV_pumpe_K} kr")
+
+
+#Spør studd ass hvorfor vi får negative verdier på noen av nårverdiene, betyr det at det lønner seg? går i pluss?
+
+print('\n')
+
+#Er innstallasjonen lønnsomme hvorfor/hvorfor ikke?
+
+
+"Klimagass"
+
+#Gitt informasjon
+
+kCO2_NO = 18.9/1000    # kgCO2 / kWh   Utslipp fra Norsk kraftprod
+kCO2_EU = 300/1000    # kgCO2 / kWh   Utslipp fra Europeisk kraftprod
+kCO2_sol = 7000   # kgCO2 / kW   Engangsutslipp ved prod./installasjon av solceller
+kCO2_vind = 700   # kgCO2 / kW   Engangsutslipp ved prod./installasjon av vindturbin
+kCO2_pumpe = 1800 # kgCO2 / kWth Engangsutslipp ved prod./installasjon av varmepumpe
+P_i_sol = 3.0     # kW
+P_i_vind = 0.78   # kW
+P_i_pumpe = 4.0   # kWth
+
+"Må vi gjøre om på varmepumpe siden d står th?"
+
+k_i = [kCO2_sol, P_i_sol, kCO2_vind, P_i_vind, kCO2_pumpe, P_i_pumpe]
+k_i_sum = np.sum(k_i)
+
+print(k_i_sum)
+
+
+print('\n')
+
+"Utslipp norsk strøm med mikrogrid"
+
+def Kgu(N,k,E):
+    utslipp_tot = (N*k*E)
+    return utslipp_tot
+
+
+#Klimagassutslipp ila 10 år for case 1 og ingen vindturbin eller solcelle, ved kjøp av norsk produsert energi
+
+
+utslipp_tot_C1_L_NO_B = Kgu(10, kCO2_NO, np.sum(Wvarme_C1_B))
+print('Bergen (NO):')
+print (f'Totalt klimagassutslipp for case 1 i Bergen er: {utslipp_tot_C1_L_NO_B} kgCO2') #hør om det er riktig enhet
+
+print('')
+
+utslipp_tot_C1_L_NO_K = Kgu(10, kCO2_NO, np.sum(Wvarme_C1_K))
+print('Kirkenes (NO):')
+print (f'Totalt klimagassutslipp for case 1 i Kirkenes er: {utslipp_tot_C1_L_NO_K} kgCO1' )
+
+print('\n')
+
+#Klimagassutslipp ila 10 år for case 1 og ingen vindturbin eller solcelle, ved kjøp av norsk produsert energi
+
+utslipp_tot_C1_L_EU_B = Kgu(10, kCO2_EU, np.sum(Wvarme_C1_B))
+print('Bergen (EU):')
+print (f'Totalt klimagassutslipp for case 1 i Bergen er: {utslipp_tot_C1_L_EU_B} kgCO2') #hør om det er riktig enhet
+
+print('')
+
+utslipp_tot_C1_L_EU_K = Kgu(10, kCO2_EU, np.sum(Wvarme_C1_K))
+print('Kirkenes (EU):')
+print (f'Totalt klimagassutslipp for case 1 i Kirkenes er: {utslipp_tot_C1_L_EU_K} kgCO1' )
+
+" Print or use the values as needed"
+
+print ('\n')
+
+
+
+utslipp_tot_C3_B_NO = (kCO2_sol*P_i_sol) + (kCO2_vind*P_i_vind) + (kCO2_pumpe*P_i_pumpe) + Kgu(10,kCO2_NO,np.sum(Wvarme_C3_B))
+print('Bergen (NO):')
+print(f'Totalt klimagassutslipp for case 3 i Bergen er: {np.sum(utslipp_tot_C3_B_NO)} kgCO2')
+
+print('')
+
+
+utslipp_tot_C3_K_NO = (kCO2_sol*P_i_sol) + (kCO2_vind*P_i_vind) + (kCO2_pumpe*P_i_pumpe) + Kgu(10,kCO2_NO,np.sum(Wvarme_C3_K))
+print('Kirkenes (NO):')
+print(f'Totalt klimagassutslipp for case 3 i Kirkenes er: {np.sum(utslipp_tot_C3_K_NO)} kgCO2') #skal det være summert?
