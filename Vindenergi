@@ -1,0 +1,170 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import calendar
+
+
+"Effektberegning"
+vref = np.arange(31)
+Pref = np.array([0, 0, 0, 20, 50, 90, 165, 270, 360, 410, 540, 720, 760, 775, 780, 780, 780, 780, 780, 780, 780, 780, 780, 780, 780, 780, 0, 0, 0, 0, 0])
+
+Asveip = 2.27  # Sveipeareal til vindturbinen, m2
+rho = 1.24  # Tetthet luft ~25C, kg/m3
+eta_v = (2 * Pref) / (rho * Asveip * vref ** 3)
+
+
+
+"Plotting effektkurve"
+
+fig, ax1 = plt.subplots()
+
+color = 'tab:red'
+ax1.set_xlabel('Vindhastighet (m/s)')
+ax1.set_ylabel('Effekt (W)', color=color)
+ax1.plot(vref, Pref, color=color)
+ax1.tick_params(axis='y', labelcolor=color)
+ax1.set_ylim(bottom=0)
+
+
+"Plotting virkningrad"
+
+ax2 = ax1.twinx()  
+color = 'tab:blue'
+ax2.set_ylabel('Virkningsgrad (%)', color=color)  
+ax2.plot(vref, eta_v, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+ax2.set_ylim(bottom=0)
+
+fig.tight_layout()  
+plt.title('Effektkurve og Virkningsgrad for vindturbin')
+plt.grid(True)
+plt.show()
+
+"Importering av vinddata"
+vindvec_Bergen = pd.read_csv('Bergen_vind.csv', delimiter=';', decimal=',', header=0)  # Adjust the header index here
+vindvec_Bergen1 = vindvec_Bergen.iloc[0:8760, 1].to_numpy()
+vindvec_Kirkenes = pd.read_csv('Kirkenes_vind.csv', delimiter=';', decimal=',', header=0)  # Adjust the header index here
+vindvec_Kirkenes1= vindvec_Kirkenes.iloc[0:8760, 1].to_numpy()
+   
+
+
+# Sjekk formen på vektorene
+print("Formen på middelvindvektor for Bergen", vindvec_Bergen.shape)
+print("Formen på middelvindvektor for Kirkenes", vindvec_Kirkenes.shape)
+
+"Interpolering"
+# Estimer print(P_vind_lindesnes)
+P_vind_Bergen = np.interp(vindvec_Bergen1, vref, Pref)/1000# kwh
+
+# Estimer vindturbinens effekt ved alle vindhastighetene for Ragnarokk
+P_vind_Kirkenes = np.interp(vindvec_Kirkenes1, vref, Pref)/1000
+
+print("Vindturbinens effekt ved alle vindhastighetene for Bergen:")
+print(P_vind_Bergen)
+
+print("\nVindturbinens effekt ved alle vindhastighetene for Kirkenes:")
+print(P_vind_Kirkenes)
+
+Ptot_Bergen = np.sum(P_vind_Bergen) #kwh/year
+Ptot_Kirkenes = np.sum(P_vind_Kirkenes)
+
+print("Total årlig energiproduksjon for Bergen: {:.2f} kWh/år".format(Ptot_Bergen))
+print("Total årlig energiproduksjon for Kirkenes: {:.2f} kWh/år".format(Ptot_Kirkenes))
+
+np.save('Bergen_EprodVind_new.npy',P_vind_Bergen)
+np.save('Kirkenes_EprodVind_new.npy',P_vind_Kirkenes)
+
+
+print('vindturbinens effekt ved alle vindhastighetene for Bergen',P_vind_Bergen)
+print('vindturbinens effekt ved alle vindhastighetene for Kirkenes',P_vind_Kirkenes)
+
+vM_Bergen=np.zeros(12)
+pM_Bergen=np.zeros(12)
+
+vM_Kirkenes=np.zeros(12)
+pM_Kirkenes=np.zeros(12)
+
+"Konvertering timer - mnd"
+# 5. Beregn månedlige gjennomsnitt for vindhastighet
+
+
+"Konvertering timer - mnd"
+for i in range(12):
+    p = int(i * len(vindvec_Bergen1) / 12)  # Starting index for the month
+    q = int((i + 1) * len(vindvec_Bergen1) / 12)  # Ending index for the month
+    MaanedligDatav_Bergen = vindvec_Bergen1[p:q]  # Monthly wind speed data
+   
+    if len(MaanedligDatav_Bergen) > 0:
+        vM_Bergen[i] = np.mean(MaanedligDatav_Bergen)
+    else:
+        vM_Bergen[i] = 0  # Handle the case when the array is empty
+
+    MaanedligDataP_Bergen = P_vind_Bergen[p:q]
+    pM_Bergen[i] = np.sum(MaanedligDataP_Bergen)
+
+
+for i in range(12):
+       for i in range(12):
+               p = int(i * len(vindvec_Kirkenes1) / 12)  # Starting index for the month
+               q = int((i + 1) * len(vindvec_Kirkenes1) / 12)  # Ending index for the month
+               MaanedligDatav_Kirkenes = vindvec_Kirkenes1[p:q]  # Monthly generated energy
+               
+               if len(MaanedligDatav_Kirkenes) > 0:
+                  vM_Kirkenes[i] = np.mean(MaanedligDatav_Kirkenes)
+               else:
+                  vM_Kirkenes[i] = 0  # Handle the case when the array is empty
+         
+               MaanedligDataP_Kirkenes = P_vind_Kirkenes[p:q]
+               pM_Kirkenes[i] = np.sum(MaanedligDataP_Kirkenes)
+               
+print("Månedlig vindhastighet for Bergen:", vM_Bergen)
+print("Månedlig vindproduksjon for Bergen:", pM_Bergen)
+
+print("Månedlig vindhastighet for Kirkenes:", vM_Kirkenes)
+print("Månedlig vindproduksjon for Kirkenes:", pM_Kirkenes)
+
+
+"Kapasitetsfaktor"
+Pmax_Bergen =780/1e3*8760
+K_Bergen= Ptot_Bergen /Pmax_Bergen *100
+
+Pmax_Kirkenes=780/1e3*8760
+K_Kirkenes= Ptot_Kirkenes /Pmax_Kirkenes*100
+
+
+"Plotting av gjennomsnittelig Vindhastighet"
+
+# Månedsnavn for plotting
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+
+#plotter bergfen og kirkens vindhastighet i samme graf
+plt.figure(figsize=(10, 6))
+
+plt.plot(months, vM_Bergen, marker='o', linestyle='-', label='Bergen')
+plt.plot(months, vM_Kirkenes, marker='o', linestyle='-', label='Kirkenes')
+
+plt.title('Gjennomsnittlig månedlig vindhastighet for Bergen og Kirkenes')
+plt.xlabel('Måned')
+plt.ylabel('Vind (m/s)')
+plt.grid(True)
+plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+
+"Plotting av gjennomsnittelig Strømproduksjon"
+
+#plotter Bergen og Kirkenes strømprodukjson i samme graf
+plt.figure(figsize=(10, 6))
+
+plt.bar(np.arange(len(months))-0.2, pM_Bergen, width=0.4, color='skyblue', label='Bergen')
+plt.bar(np.arange(len(months))+0.2, pM_Kirkenes, width=0.4, color='lightgreen', label='Kirkenes')
+
+plt.title('Gjennomsnittlig månedlig strømproduksjon for Bergen og Kirkenes')
+plt.xlabel('Måned')
+plt.ylabel('Gjennomsnittlig strømproduksjon (kWh)')
+plt.xticks(np.arange(len(months)), months, rotation=45)  # Set x-axis ticks and labels
+plt.legend()
+plt.tight_layout()
+plt.show()
